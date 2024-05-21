@@ -63,7 +63,7 @@ if [[ $(uname) == *"Darwin"* ]]; then
         if [ ! -f "/usr/local/bin/python" ]; then
             # this will link python3.11 to python which will fix poetry issues
             # ref: https://stackoverflow.com/a/74582011/3547184
-            ln -s -f /usr/local/bin/python3.11 /usr/local/bin/python
+            ln -s -f /usr/local/bin/python3.12 /usr/local/bin/python
         fi
     fi
 
@@ -127,3 +127,6 @@ export W3M_DIR="~/.local/state/w3m"
 
 # add gcloud to path on macOS because they don't have a homebrew package
 export PATH=$PATH:$HOME/.local/bin/google-cloud-sdk/bin
+
+# make sure we make all yamllint changes for safer linting
+export YAMLLINT_CONFIG_FILE="$XDG_CONFIG_HOME/yamllint/config.yml"

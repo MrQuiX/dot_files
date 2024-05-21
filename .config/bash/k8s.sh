@@ -14,23 +14,29 @@ export SEARCH_TOOL="ag"
 # I always forget that krew isn't a command
 alias krew='kubectl krew'
 
-# cluster context shortcut
 alias k="kubecolor"
 alias ka="kubecolor apply -f"
+# cluster context shortcut
 alias kc="kubecolor config use-context"
+alias kcc="kubecolor config current-context"
 alias kd="kubecolor describe"
 alias ke="kubecolor exec -it"
-alias kg="kubecolor get"
-alias kgcm="kubecolor get configmaps"
 alias kl="kubecolor logs -f"
-alias kcc="$SEARCH_TOOL current $KUBECONFIG"
 alias kdm="kubecolor describe nodes -l kubernetes.io/role=master"
 alias kdn="kubecolor describe nodes -l kubernetes.io/role=node"
+alias kg="kubecolor get"
+alias kgcm="kubecolor get configmaps"
 alias kgm="kubecolor get nodes -l kubernetes.io/role=master"
 alias kgn="kubecolor get nodes -l kubernetes.io/role=node"
+# get cnpg backups
+alias kgpgb="kubecolor get backups.postgresql.cnpg.io -o custom-columns=name:.metadata.name,status:.status.phase"
+# get k8up backups
+alias kgb="kubecolor get backups -o custom-columns=name:.metadata.name,status:.status.conditions[-1].reason"
+alias kgp="kubecolor get pods -o custom-columns=name:.metadata.name,status:.status.phase"
+alias kgj="kubecolor get jobs -o custom-columns=name:.metadata.name,status:.status.conditions[0].type"
 
 # get shell access to nextcloud pod in nextcloud namespace
-alias nextcloud_pod="kg pods -n nextcloud | grep -v postgres | grep -v metrics | tail -n 1 | awk '{print $1}'"
+alias nextcloud_pod="kg pods -n nextcloud -l app.kubernetes.io/component=app,app.kubernetes.io/instance=nextcloud-web-app,app.kubernetes.io/name=nextcloud"
 alias ncsh='ke -n nextcloud $(nextcloud_pod) -- /bin/sh'
 
 function kgall() {
@@ -41,18 +47,21 @@ function kgall() {
     echo -e "\n─────────────────────────────────────────────────────────────────"
     echo -e "                           💾 PVCS 💾"
     echo -e "─────────────────────────────────────────────────────────────────\n"
-    kubecolor get pvc 
+    kubecolor get pvc
     echo -e "\n─────────────────────────────────────────────────────────────────"
     echo -e "                          🤫 Secrets 🤫"
     echo -e "─────────────────────────────────────────────────────────────────\n"
-    kubecolor get secrets 
+    kubecolor get secrets
     echo -e "\n─────────────────────────────────────────────────────────────────"
     echo -e "                          ⚙️ ConfigMaps ⚙️"
     echo -e "─────────────────────────────────────────────────────────────────\n"
     kubecolor get configmaps
 }
 
-# print every k8s secret in plain text... very secure 
+# alias a common typo
+alias gkall="kgall"
+
+# print every k8s secret in plain text... very secure
 function kgsdump() {
     BLUE='\033[1;34m'
     GREEN='\033[1;32m'
@@ -96,6 +105,25 @@ function kgsdumpall() {
     fi
 }
 
+# dump all tls secret manifests in the current namespace into files in current dir
+function kdumpcerts() {
+    BLUE='\033[1;34m'
+    GREEN='\033[1;32m'
+    NC='\033[0m'
+    if [[ $@ == "--help" ]]; then
+        echo -e "󰛨  ${BLUE}Usage${NC}: ${GREEN}kdumpcerts [-n NAMESPACE]${NC}\n\nDump all the k8s TLS secrets in the current namespace to files in the current directory"
+    elif [[ $1 == "-n" ]]; then
+        namespace=$2
+        echo -e "Dumping all certs for namespace ${GREEN}$namespace${NC} to files."
+        kubectl get secrets -n $namespace | grep '\-tls' | awk '{print $1}' | xargs -I % sh -c "kubectl get secret -n $namespace -o yaml % > %.yaml"
+    else
+        echo "Dumping all certs for current namespace to files."
+        kubectl get secrets | grep '\-tls' | awk '{print $1}' | xargs -I % sh -c 'kubectl get secret -o yaml % > %.yaml'
+    fi
+}
+
+alias kgscerts='kdumpcerts'
+
 # force delete function
 function kfd() {
     kubecolor delete pod --grace-period=0 --force $1
@@ -103,24 +131,32 @@ function kfd() {
 
 # help text for k commands
 function khelp {
-  echo "k                   = kubecolor";
-  echo "ka                  = kubecolor apply -f (applies a k8s yaml file to current cluster)";
-  echo "kc                  = kubecolor config use-context (switch to EXACT cluster name)";
-  echo "kd                  = kubecolor describe";
-  echo "ke                  = kubecolor exec -it";
-  echo "kg                  = kubecolor get";
-  echo "kgall               = kubecolor get (pods, secrets, configmaps, PVCs)";
-  echo "kgcm                = kubecolor get configmaps";
-  echo "kgs                 = kubecolor get secrets";
-  echo "kl                  = kubecolor logs -f (follow logs for a pod)";
-  echo "k8p                 = switch to prod k8 instance";
-  echo "k8dw                = switch to data warehouse k8 instance";
-  echo "kcc                 = echoes current k8s cluster you're connecting to";
-  echo "kcs <dev/qa/prod>   = switch current context to given namespace";
-  echo "kdn                 = kubecolor describe nodes";
-  echo "kfd <pod-name>      = force delete of pod";
-  echo "kns <namespace>     = switch current context to given namespace";
-  echo "kgsdump <secret>    = dump the contents of a secret in plain text";
+  BLUE='\033[1;34m'
+  GREEN='\033[1;32m'
+  NC='\033[0m'
+  echo -e "${BLUE}k${NC}                  = kubecolor";
+  echo -e "${BLUE}ka${NC}                 = k apply -f (applies a k8s yaml file to current cluster)";
+  echo -e "${BLUE}kc${NC}                 = k config use-context (switch to EXACT cluster name)";
+  echo -e "${BLUE}kd${NC}                 = k describe";
+  echo -e "${BLUE}ke${NC}                 = k exec -it";
+  echo -e "${BLUE}kg${NC}                 = k get";
+  echo -e "${BLUE}kgcm${NC}               = k get configmaps";
+  echo -e "${BLUE}kgb${NC}                = k get backups";
+  echo -e "${BLUE}kgpgb${NC}              = k get backups.postgresql.cnpg.io";
+  echo -e "${BLUE}kgp${NC}                = k get pods with only name and status columns";
+  echo -e "${BLUE}kgj${NC}                = k get jobs with only name and status columns";
+  echo -e "${BLUE}kgs${NC}                = k get secrets";
+
+  echo -e "${BLUE}kgall${NC}              = k get (pods, secrets, configmaps, PVCs)";
+  echo -e "${BLUE}kl${NC}                 = k logs -f (follow logs for a pod)";
+  echo -e "${BLUE}k8p${NC}                = switch to prod k8 instance";
+  echo -e "${BLUE}k8dw${NC}               = switch to data warehouse k8 instance";
+  echo -e "${BLUE}kcc${NC}                = echoes current k8s cluster you're connecting to";
+  echo -e "${BLUE}kcs${NC} <dev/qa/prod>  = switch current context to given namespace";
+  echo -e "${BLUE}kdn${NC}                = k describe nodes";
+  echo -e "${BLUE}kfd${NC} <pod-name>     = force delete of pod";
+  echo -e "${BLUE}kns${NC} <namespace>    = switch current context to given namespace";
+  echo -e "${BLUE}kgsdump${NC} <secret>   = dump the contents of a secret in plain text";
 };
 
 # set current namespace function
