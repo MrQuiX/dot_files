@@ -1,4 +1,3 @@
-local personal_config = require 'personal_wezterm_config'
 local wezterm = require 'wezterm'
 local act = wezterm.action
 
@@ -50,7 +49,7 @@ local config = {
        hide_tab_bar_if_only_one_tab = true,
        window_decorations = "RESIZE",
        -- transparency
-       window_background_opacity = 0.95,
+       window_background_opacity = 0.96,
 
        -- key mappings
        keys = {
@@ -120,7 +119,7 @@ local config = {
                '#dadfe0',
            },
            brights = {
-               '#282727',
+               '#6e77a0',
                '#fe8ea2',
                '#97e178',
                '#f6f76a',
@@ -166,8 +165,18 @@ local config = {
 }
 
 -- add ssh_domains only if they're present in a local file
+local function file_exists(name)
+    local f=io.open(name,"r")
+   if f~=nil then io.close(f) return true else return false end
+end
+
+
 local function add_personal_config()
-    config["ssh_domains"] = personal_config.ssh_domains
+    local home = os.getenv("HOME")
+    if file_exists(home .. '/.config/wezterm/personal_wezterm_config.lua') then
+        local personal_config = require 'personal_wezterm_config'
+        config["ssh_domains"] = personal_config.ssh_domains
+    end
 end
 
 pcall(add_personal_config)

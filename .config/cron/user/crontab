@@ -1,0 +1,4 @@
+0 12 * * * ~/.config/cron/user/lunch.sh
+30 12 * * * ~/.config/cron/user/daily.sh
+10 17 * * * ~/.config/cron/user/go_home.sh
+30 20 * * * ~/.config/cron/user/self_care_time.sh

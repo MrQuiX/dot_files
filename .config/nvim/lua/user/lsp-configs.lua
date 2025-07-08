@@ -5,7 +5,7 @@ require("mason").setup()
 require("mason-lspconfig").setup {
   -- automatically install language servers setup below for lspconfig
   automatic_installation = true,
-  ensure_installed = { "bashls", "jedi_language_server", "ruff_lsp", "lua_ls" }
+  ensure_installed = { "bashls", "jedi_language_server", "ruff", "lua_ls" }
 }
 
 -- Set up lspconfig.
@@ -17,12 +17,12 @@ local capabilities = require('cmp_nvim_lsp').default_capabilities()
 -- Setup the language servers so that they're available for our LSP client.
 local lspconfig = require('lspconfig')
 
--- ansible 
+-- ansible
 lspconfig.ansiblels.setup{
     capabilities = capabilities
 }
 
--- bash 
+-- bash
 lspconfig.bashls.setup{
     capabilities = capabilities
 }
@@ -61,14 +61,15 @@ lspconfig.jsonls.setup {
     settings = {
         json = {
             schemas = {
-        ["https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json"] = "/*/fastfetch/config.jsonc"
+        ["https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json"] = "/*/fastfetch/config.jsonc",
+        ["https://docs.renovatebot.com/renovate-schema.json"] = "/*/renovate.json"
             }
         }
     }
 }
 
 
--- lua 
+-- lua
 lspconfig.lua_ls.setup{
     settings = {
         Lua = {
@@ -92,7 +93,7 @@ lspconfig.lua_ls.setup{
     },
 }
 
--- markdown 
+-- markdown
 lspconfig.marksman.setup{
    capabilities = capabilities
 }
@@ -103,8 +104,19 @@ lspconfig.jedi_language_server.setup{
 }
 
 -- python - ruff linting
-lspconfig.ruff_lsp.setup{
+lspconfig.ruff.setup{
     capabilities = capabilities
+}
+
+-- rust
+lspconfig.rust_analyzer.setup{
+  settings = {
+    ['rust-analyzer'] = {
+      diagnostics = {
+        enable = true;
+      }
+    }
+  }
 }
 
 -- terraform
@@ -134,8 +146,8 @@ lspconfig.yamlls.setup {
       schemas = {
         ["https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.29.3-standalone-strict/all.json"] = "/manifests/*",
         ["https://json.schemastore.org/github-workflow.json"] = "*/.github/workflows/*",
-        ["https://raw.githubusercontent.com/jessebot/CRDs-catalog/update-argocd-crds/argoproj.io/application_v1alpha1.json"] = "/*argocd_app.yaml",
-        ["https://raw.githubusercontent.com/jessebot/CRDs-catalog/update-argocd-crds/argoproj.io/applicationset_v1alpha1.json"] = "/*argocd_appset.yaml",
+        ["https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/argoproj.io/application_v1alpha1.json"] = "/*argocd_app.yaml",
+        ["https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/argoproj.io/applicationset_v1alpha1.json"] = "/*argocd_appset.yaml",
         ["https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/argoproj.io/appproject_v1alpha1.json"] = "/*argocd_project.yaml",
         ["https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/external-secrets.io/externalsecret_v1beta1.json"] = "/external_secrets/*",
         [""] = ""

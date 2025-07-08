@@ -1,16 +1,17 @@
 -- installs lazy, our plugin manager for neovim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system(
-        {
-            "git",
-            "clone",
-            "--filter=blob:none",
-            "https://github.com/folke/lazy.nvim.git",
-            "--branch=stable", -- latest stable release
-            lazypath,
-        }
-    )
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  local lazyrepo = "https://github.com/folke/lazy.nvim.git"
+  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  if vim.v.shell_error ~= 0 then
+    vim.api.nvim_echo({
+      { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
+      { out, "WarningMsg" },
+      { "\nPress any key to exit..." },
+    }, true, {})
+    vim.fn.getchar()
+    os.exit(1)
+  end
 end
 vim.opt.rtp:prepend(lazypath)
 
@@ -29,11 +30,10 @@ local plugins = {
     },
     -- -------------------- startup screen for neovim ------------------------
     {
-        'glepnir/dashboard-nvim',
+        'nvimdev/dashboard-nvim',
         event = 'VimEnter',
         dependencies = {
-            'nvim-tree/nvim-web-devicons',
-            'MunifTanjim/nui.nvim',
+            'nvim-tree/nvim-web-devicons'
         }
     },
     -- -------------------------- status line --------------------------------
@@ -130,7 +130,7 @@ local plugins = {
     {
         'nvim-neo-tree/neo-tree.nvim',
         cmd = "Neotree",
-        branch = "v2.x",
+        branch = "v3.x",
         dependencies = {
             'nvim-lua/plenary.nvim',
             'nvim-tree/nvim-web-devicons',
@@ -147,48 +147,51 @@ local plugins = {
         dependencies = {'nvim-tree/nvim-web-devicons'},
         lazy = true,
     },
+    -- this was for barbeque before it was replaced with dropbar.api
+    -- {
+    --   kinds = {
+    --       File = "",
+    --       Module = "",
+    --       Namespace = "",
+    --       Package = "",
+    --       Class = "",
+    --       Method = "",
+    --       Property = "󰀭",
+    --       Field = "🌾",
+    --       Constructor = "󰬢",
+    --       Enum = "",
+    --       Interface = "",
+    --       Function = "󰊕",
+    --       Variable = "󰫧",
+    --       Constant = "",
+    --       String = "",
+    --       Number = "",
+    --       Boolean = "",
+    --       Array = "",
+    --       Object = "",
+    --       Key = "",
+    --       Null = "",
+    --       EnumMember = "",
+    --       Struct = "",
+    --       Event = "",
+    --       Operator = "",
+    --       TypeParameter = "",
+    --        },
+    -- },
     -- code refence at top of window
     {
-        "utilyre/barbecue.nvim",
-        name = "barbecue",
-        version = "*",
-        dependencies = {
-            "SmiteshP/nvim-navic",
-            "nvim-tree/nvim-web-devicons"
-        },
-        opts = {
-            show_dirname = false,
-            show_basename = false,
-            context_follow_icon_color = true,
-            kinds = {
-                File = "",
-                Module = "",
-                Namespace = "",
-                Package = "",
-                Class = "",
-                Method = "",
-                Property = "󰀭",
-                Field = "🌾",
-                Constructor = "󰬢",
-                Enum = "",
-                Interface = "",
-                Function = "󰊕",
-                Variable = "󰫧",
-                Constant = "",
-                String = "",
-                Number = "",
-                Boolean = "",
-                Array = "",
-                Object = "",
-                Key = "",
-                Null = "",
-                EnumMember = "",
-                Struct = "",
-                Event = "",
-                Operator = "",
-                TypeParameter = "",
-            },
-        },
+    'Bekaboo/dropbar.nvim',
+    -- optional, but required for fuzzy finder support
+    dependencies = {
+      'nvim-telescope/telescope-fzf-native.nvim',
+      build = 'make'
+    },
+    config = function()
+      local dropbar_api = require('dropbar.api')
+      vim.keymap.set('n', '<Leader>;', dropbar_api.pick, { desc = 'Pick symbols in winbar' })
+      vim.keymap.set('n', '[;', dropbar_api.goto_context_start, { desc = 'Go to start of current context' })
+      vim.keymap.set('n', '];', dropbar_api.select_next_context, { desc = 'Select next context' })
+    end
     },
     -- ------------------ dimming inactive windows ---------------------------
     {
@@ -322,15 +325,11 @@ local plugins = {
         -- :TSUpdateSync updates the nvim_treesitter compiling stuff
         build = {":MasonUpdate", ":TSUpdateSync"}
     },
-    -- this helps bridge the gap between additional linters that don't have proper LSP
-    {
-        'jose-elias-alvarez/null-ls.nvim',
-    },
-    -- may replace null-ls since it is being deprecated
+    -- may replace null-ls since was deprecated
+    -- https://github.com/nvimdev/guard.nvim
     --{
     --    'nvimdev/guard.nvim'
     --},
-
     -- Diagnostics with leader key + d
     {
         "folke/trouble.nvim",
@@ -392,6 +391,18 @@ local plugins = {
         },
 
     },
+    -- add gitbrowse to easily get git url
+    {
+      "folke/snacks.nvim",
+      ---@type snacks.Config
+      opts = {
+        gitbrowse = {
+          -- your gitbrowse configuration comes here
+          -- or leave it empty to use the default settings
+          -- refer to the configuration section below
+        }
+      }
+    },
     -- --------------------- Language Specific Stuff -------------------------
     {
         'norcalli/nvim-colorizer.lua',
@@ -427,6 +438,23 @@ local plugins = {
         'nvim-tree/nvim-web-devicons',
         lazy = true
     },
+    -- preview markdown in a web browser
+    {
+        "iamcco/markdown-preview.nvim",
+        cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
+        ft = { "markdown" },
+        build = function() vim.fn["mkdp#util#install"]() end,
+    },
+    {
+      "iamcco/markdown-preview.nvim",
+      cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
+      build = "cd app && yarn install",
+      init = function()
+        vim.g.mkdp_filetypes = { "markdown" }
+      end,
+      ft = { "markdown" },
+    }
+
 }
 
 require("lazy").setup(plugins)

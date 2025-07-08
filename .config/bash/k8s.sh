@@ -17,23 +17,24 @@ alias krew='kubectl krew'
 alias k="kubecolor"
 alias ka="kubecolor apply -f"
 # cluster context shortcut
-alias kc="kubecolor config use-context"
-alias kcc="kubecolor config current-context"
+alias kcc="kubecolor config get-contexts"
 alias kd="kubecolor describe"
 alias ke="kubecolor exec -it"
 alias kl="kubecolor logs -f"
 alias kdm="kubecolor describe nodes -l kubernetes.io/role=master"
 alias kdn="kubecolor describe nodes -l kubernetes.io/role=node"
 alias kg="kubecolor get"
-alias kgcm="kubecolor get configmaps"
+alias kgi="kubecolor get ingress"
 alias kgm="kubecolor get nodes -l kubernetes.io/role=master"
 alias kgn="kubecolor get nodes -l kubernetes.io/role=node"
 # get cnpg backups
-alias kgpgb="kubecolor get backups.postgresql.cnpg.io -o custom-columns=name:.metadata.name,status:.status.phase"
+alias kgpgb="echo -e 'backups.postgresql.cnpg.io\n─────────────────────────────────────────────────────────────────' && kubecolor get backups.postgresql.cnpg.io -o custom-columns=name:.metadata.name,status:.status.phase"
 # get k8up backups
 alias kgb="kubecolor get backups -o custom-columns=name:.metadata.name,status:.status.conditions[-1].reason"
 alias kgp="kubecolor get pods -o custom-columns=name:.metadata.name,status:.status.phase"
 alias kgj="kubecolor get jobs -o custom-columns=name:.metadata.name,status:.status.conditions[0].type"
+alias kpf="kubecolor port-forward"
+alias kgsvc="kubecolor get service"
 
 # get shell access to nextcloud pod in nextcloud namespace
 alias nextcloud_pod="kg pods -n nextcloud -l app.kubernetes.io/component=app,app.kubernetes.io/instance=nextcloud-web-app,app.kubernetes.io/name=nextcloud"
@@ -60,6 +61,51 @@ function kgall() {
 
 # alias a common typo
 alias gkall="kgall"
+
+# print every k8s secret in plain text... very secure
+function kgcm() {
+    BLUE='\033[1;34m'
+    GREEN='\033[1;32m'
+    NC='\033[0m'
+    if [ -z $@ ]; then
+        echo -e "󰛨  ${BLUE}Usage${NC}: ${GREEN}kgcm CONFIGMAP_NAME${NC}\n\nDumps all the data fields for a given k8s ConfigMap in plain text\n"
+        kubecolor get configmaps
+    elif [[ $@ == "--help" ]]; then
+        echo -e "󰛨  ${BLUE}Usage${NC}: ${GREEN}kgcm CONFIGMAP_NAME${NC}\n\nDumps all the data fields for a given k8s ConfigMap in plain text"
+        kubecolor get configmaps
+    else
+        kubecolor get configmap $@ -o yaml | yq .data
+        # the world isn't ready for this yet.
+        #
+        # input_cm=$@
+        # counter=0
+        # for config_data in `kg configmap $@ -o json | jq .data[]`; do
+        #     echo "counter is $counter"
+        #     parameter=`kg configmap $input_cm -o json | jq .data | jq 'keys' | jq -r .[$counter]`
+        #     echo "parameter is $parameter"
+        #     echo "input cm is $input_cm"
+
+        #     if [[ "$parameter" == "null" ]]; then
+        #         break
+        #     elif [[ "$parameter" == *".json" ]]; then
+        #         echo -e "${BLUE}${parameter}${NC}:"
+        #         kg configmap $input_cm -o json | jq -r --arg PARAMETER "$parameter" '.data[] | select(env.parameter)'
+        #         echo "hi max"
+        #     elif [[ "$parameter" == *".yml" ]] || [[ "$parameter" == *".yaml" ]]; then
+        #         echo -en "${BLUE}${parameter}${NC}:\n"
+        #         kg configmap $@ -o yaml | yq .data | yq $parameter
+        #     elif [[ "$parameter" == *".cfg" ]] || [[ "$parameter" == *".conf" ]]; then
+        #         echo -en "${BLUE}${parameter}${NC}:\n"
+        #         kg configmap $@ -o json | jq .data | jq $parameter | bat -l cfg
+        #     else
+        #         value=`kg configmap $@ -o json | jq .data | jq $parameter`
+        #         echo -en "${BLUE}${parameter}${NC}: ${GREEN}$value${NC}\n"
+        #     fi
+        #     # tick up the counter
+        #     let counter++
+        # done
+    fi
+}
 
 # print every k8s secret in plain text... very secure
 function kgsdump() {
@@ -129,40 +175,50 @@ function kfd() {
     kubecolor delete pod --grace-period=0 --force $1
 }
 
+# set current namespace function
+function kns() {
+    kubecolor config set-context $(kubecolor config current-context) --namespace=$1
+}
+
+# use a new context
+function kc() {
+    kubecolor config use-context $1
+}
+
+# delete a crd by removing finalizers
+function kdcrd() {
+    kubectl patch crd/$1 -p '{"metadata":{"finalizers":[]}}' --type=merge
+}
+
 # help text for k commands
 function khelp {
   BLUE='\033[1;34m'
   GREEN='\033[1;32m'
   NC='\033[0m'
-  echo -e "${BLUE}k${NC}                  = kubecolor";
-  echo -e "${BLUE}ka${NC}                 = k apply -f (applies a k8s yaml file to current cluster)";
-  echo -e "${BLUE}kc${NC}                 = k config use-context (switch to EXACT cluster name)";
-  echo -e "${BLUE}kd${NC}                 = k describe";
-  echo -e "${BLUE}ke${NC}                 = k exec -it";
-  echo -e "${BLUE}kg${NC}                 = k get";
-  echo -e "${BLUE}kgcm${NC}               = k get configmaps";
-  echo -e "${BLUE}kgb${NC}                = k get backups";
-  echo -e "${BLUE}kgpgb${NC}              = k get backups.postgresql.cnpg.io";
-  echo -e "${BLUE}kgp${NC}                = k get pods with only name and status columns";
-  echo -e "${BLUE}kgj${NC}                = k get jobs with only name and status columns";
-  echo -e "${BLUE}kgs${NC}                = k get secrets";
-
-  echo -e "${BLUE}kgall${NC}              = k get (pods, secrets, configmaps, PVCs)";
-  echo -e "${BLUE}kl${NC}                 = k logs -f (follow logs for a pod)";
-  echo -e "${BLUE}k8p${NC}                = switch to prod k8 instance";
-  echo -e "${BLUE}k8dw${NC}               = switch to data warehouse k8 instance";
-  echo -e "${BLUE}kcc${NC}                = echoes current k8s cluster you're connecting to";
-  echo -e "${BLUE}kcs${NC} <dev/qa/prod>  = switch current context to given namespace";
-  echo -e "${BLUE}kdn${NC}                = k describe nodes";
-  echo -e "${BLUE}kfd${NC} <pod-name>     = force delete of pod";
-  echo -e "${BLUE}kns${NC} <namespace>    = switch current context to given namespace";
-  echo -e "${BLUE}kgsdump${NC} <secret>   = dump the contents of a secret in plain text";
+  echo -e "${GREEN}k${NC}                  = ${BLUE}kubecolor${NC}";
+  echo -e "${GREEN}ka${NC}                 = ${BLUE}k apply -f (applies a k8s yaml file to current cluster)${NC}";
+  echo -e "${GREEN}kc${NC}                 = ${BLUE}k config use-context (switch to EXACT cluster name)${NC}";
+  echo -e "${GREEN}kcc${NC}                = ${BLUE}echoes current k8s cluster you're connecting to${NC}";
+  echo -e "${GREEN}kd${NC}                 = ${BLUE}k describe${NC}";
+  echo -e "${GREEN}kdcrd${NC}              = ${BLUE}k delete crd${NC}";
+  echo -e "${GREEN}kdn${NC}                = ${BLUE}k describe nodes${NC}";
+  echo -e "${GREEN}ke${NC}                 = ${BLUE}k exec -it${NC}";
+  echo -e "${GREEN}kfd${NC} <pod-name>     = ${BLUE}k force delete of pod${NC}";
+  echo -e "${GREEN}kg${NC}                 = ${BLUE}k get${NC}";
+  echo -e "${GREEN}kgall${NC}              = ${BLUE}k get (pods, secrets, configmaps, PVCs)${NC}";
+  echo -e "${GREEN}kgb${NC}                = ${BLUE}k get backups${NC}";
+  echo -e "${GREEN}kgcm${NC}               = ${BLUE}k get configmaps${NC}";
+  echo -e "${GREEN}kgi${NC}                = ${BLUE}k get ingress${NC}";
+  echo -e "${GREEN}kgj${NC}                = ${BLUE}k get jobs with only name and status columns${NC}";
+  echo -e "${GREEN}kgpgb${NC}              = ${BLUE}k get backups.postgresql.cnpg.io${NC}";
+  echo -e "${GREEN}kgp${NC}                = ${BLUE}k get pods with only name and status columns${NC}";
+  echo -e "${GREEN}kgs${NC}                = ${BLUE}k get secrets${NC}";
+  echo -e "${GREEN}kgsdump${NC} <secret>   = ${BLUE}dump the contents of a secret in plain text${NC}";
+  echo -e "${GREEN}kgsvc${NC}              = ${BLUE}k get service${NC}";
+  echo -e "${GREEN}kl${NC}                 = ${BLUE}k logs -f (follow logs for a pod)${NC}";
+  echo -e "${GREEN}kns${NC} <namespace>    = ${BLUE}switch current context to given namespace${NC}";
+  echo -e "${GREEN}kpf${NC} <namespace>    = ${BLUE}k port-forward${NC}";
 };
-
-# set current namespace function
-function kns() {
-    kubecolor config set-context $(kubecolor config current-context) --namespace=$1
-}
 
 # helm shortcuts
 alias helmtmp='helm template . | bat -l yaml'
